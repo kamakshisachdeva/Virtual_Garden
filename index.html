@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Garden</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind Config for Zen Aesthetic -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        zen: {
+                            sage: '#9EB384',
+                            sageLight: '#CEDEBD',
+                            cream: '#FAF1E4',
+                            sky: '#A1C2F1',
+                            skyLight: '#C1D8FF',
+                            charcoal: '#435334',
+                            dark: '#2A3324'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Lora', 'serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Lora:ital@0;1&family=JetBrains+Mono:wght@300;400&display=swap"
+        rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .glass-panel {
+                @apply bg-white/40 backdrop-blur-md border border-white/50 shadow-lg rounded-2xl;
+            }
+            .nav-btn {
+                @apply flex items-center gap-3 w-full p-3 rounded-xl transition-all duration-300 text-zen-charcoal hover:bg-zen-sageLight/50 font-medium;
+            }
+            .nav-btn.active {
+                @apply bg-zen-sage text-white shadow-md;
+            }
+        }
+        body {
+            @apply bg-zen-cream text-zen-charcoal antialiased h-screen overflow-hidden;
+            /* subtle gradient background */
+            background: linear-gradient(135deg, #FAF1E4 0%, #CEDEBD 100%);
+        }
+        .view-section {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .view-section.active {
+            display: flex;
+            flex-direction: column;
+            opacity: 1;
+        }
+        .iso-item {
+            position: absolute;
+            transform: rotateZ(45deg) rotateX(-60deg);
+            transform-origin: bottom center;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .iso-item.dragging {
+            z-index: 100;
+            transform: rotateZ(45deg) rotateX(-60deg) translateY(-20px) scale(1.05);
+            opacity: 0.8;
+            cursor: grabbing !important;
+        }
+    </style>
+</head>
+
+<body class="flex h-screen w-full">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-64 glass-panel m-4 flex flex-col h-[calc(100vh-2rem)] z-10 relative shrink-0">
+        <div class="p-6">
+            <h1 class="text-2xl font-semibold text-zen-charcoal flex items-center gap-2">
+                <i data-lucide="leaf" class="text-zen-sage"></i>
+                Virtual Garden
+            </h1>
+            <p class="text-sm text-zen-charcoal/70 mt-1">Cultivating work through mindfulness</p>
+        </div>
+
+        <nav class="flex-1 px-4 space-y-2 mt-4">
+            <button class="nav-btn active" data-target="view-greenhouse">
+                <i data-lucide="sprout"></i> Grow a tree
+            </button>
+
+            <button class="nav-btn" data-target="view-pomodoro">
+                <i data-lucide="timer"></i> Pomodoro
+            </button>
+            <button class="nav-btn" data-target="view-soundscape">
+                <i data-lucide="headphones"></i> Soundscapes
+            </button>
+            <button class="nav-btn" data-target="view-journal">
+                <i data-lucide="book-heart"></i> Journal
+            </button>
+            <button class="nav-btn" data-target="view-quotes">
+                <i data-lucide="quote"></i> Quote Wall
+            </button>
+        </nav>
+
+        <div class="px-4 pb-4">
+            <button class="nav-btn bg-zen-sage/10 hover:bg-zen-sage/20 border border-zen-sage/20" data-target="view-my-garden">
+                <i data-lucide="layout-grid" class="text-zen-charcoal"></i> <span class="font-semibold">My Garden</span>
+            </button>
+        </div>
+
+        <div class="p-4 border-t border-white/30 text-center text-xs text-zen-charcoal/50">
+            Take a deep breath.
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 p-4 pl-0 h-screen overflow-hidden relative">
+        <div class="glass-panel h-full w-full p-8 md:p-12 overflow-y-auto relative">
+
+            <!-- Greenhouse View -->
+            <!-- Greenhouse View -->
+            <section id="view-greenhouse" class="view-section active h-full flex flex-col items-center">
+                <div class="flex justify-between items-center w-full max-w-2xl mb-6 mt-2">
+                    <h2 class="text-3xl font-light">Grow a tree</h2>
+                    <div
+                        class="flex items-center gap-4 bg-white/40 px-4 py-2 rounded-full backdrop-blur-sm border border-white/50">
+                        <i data-lucide="music" class="w-4 h-4 text-zen-sage"></i>
+                        <select id="gh-music-select"
+                            class="bg-transparent outline-none text-sm font-medium text-zen-charcoal cursor-pointer">
+                            <option value="none">No Music</option>
+                            <option value="rain">Gentle Rain</option>
+                            <option value="birds">Forest Birds</option>
+                            <option value="bowls">Zen Bowls</option>
+                        </select>
+                        <button id="gh-music-toggle" class="hover:text-zen-sage transition-colors">
+                            <i data-lucide="play" class="w-4 h-4" id="gh-music-icon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Setup State -->
+                <div id="gh-setup" class="flex flex-col items-center w-full max-w-2xl mt-2 space-y-6">
+                    <!-- Seed Selection -->
+                    <div class="w-full">
+                        <p class="text-sm font-medium text-zen-charcoal/70 uppercase tracking-widest text-center mb-4">
+                            Choose your seedling</p>
+                        <style>.gh-seed-btn.active .seed-check { opacity: 1; }</style>
+                        <div class="grid grid-cols-3 gap-4">
+                            <button class="gh-seed-btn active group relative glass-panel p-4 flex flex-col items-center gap-2 hover:bg-zen-charcoal hover:text-white transition-all duration-200 active:scale-95 border-2 border-zen-sage" data-seed="oak">
+                                <div class="absolute top-2 left-2 bg-zen-sage text-white rounded-full p-0.5 opacity-0 transition-opacity duration-200 seed-check"><i data-lucide="check" class="w-3 h-3"></i></div>
+                                <i data-lucide="tree-deciduous" class="w-8 h-8 text-zen-charcoal group-hover:text-white transition-colors"></i>
+                                <span class="font-medium">Oak</span>
+                            </button>
+                            <button class="gh-seed-btn group relative glass-panel p-4 flex flex-col items-center gap-2 hover:bg-zen-charcoal hover:text-white transition-all duration-200 active:scale-95 border-2 border-transparent" data-seed="lavender">
+                                <div class="absolute top-2 left-2 bg-zen-sage text-white rounded-full p-0.5 opacity-0 transition-opacity duration-200 seed-check"><i data-lucide="check" class="w-3 h-3"></i></div>
+                                <i data-lucide="flower-2" class="w-8 h-8 text-[#9884B3] group-hover:text-white transition-colors"></i>
+                                <span class="font-medium">Lavender</span>
+                            </button>
+                            <button class="gh-seed-btn group relative glass-panel p-4 flex flex-col items-center gap-2 hover:bg-zen-charcoal hover:text-white transition-all duration-200 active:scale-95 border-2 border-transparent" data-seed="bonsai">
+                                <div class="absolute top-2 left-2 bg-zen-sage text-white rounded-full p-0.5 opacity-0 transition-opacity duration-200 seed-check"><i data-lucide="check" class="w-3 h-3"></i></div>
+                                <i data-lucide="tree-pine" class="w-8 h-8 text-zen-charcoal group-hover:text-white transition-colors"></i>
+                                <span class="font-medium">Bonsai</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Timer Selection -->
+                    <div class="w-full glass-panel p-5 flex flex-col items-center">
+                        <p class="text-sm font-medium text-zen-charcoal/70 uppercase tracking-widest mb-5">Growth Time</p>
+                        <div class="flex items-center justify-center gap-3 w-full px-4">
+                            <input type="number" id="gh-time-input" min="1" max="999" value="25"
+                                class="bg-transparent border-b-2 border-zen-sage/50 focus:border-zen-sage transition-colors text-4xl font-light font-mono text-zen-charcoal text-center outline-none w-24 pb-1">
+                            <span class="text-zen-charcoal/60 font-medium text-lg">min</span>
+                        </div>
+                        <div class="hidden" id="gh-time-display">25:00</div>
+                    </div>
+
+                    <!-- Intention Input -->
+                    <div class="w-full glass-panel p-5 flex flex-col items-center">
+                        <p class="text-sm font-medium text-zen-charcoal/70 uppercase tracking-widest mb-3">message</p>
+                        <input type="text" id="gh-message-input" placeholder="you got it😉" maxlength="50"
+                            class="bg-transparent border-b border-zen-sage/30 focus:border-zen-sage transition-colors text-lg text-zen-charcoal text-center outline-none w-full max-w-sm pb-1 placeholder:text-zen-charcoal/30">
+                    </div>
+
+                    <button id="gh-start-btn"
+                        class="px-10 py-4 bg-zen-sage text-white rounded-full hover:bg-zen-charcoal transition-colors shadow-lg font-medium text-lg flex items-center gap-3 hover:scale-105 transform duration-300">
+                        <i data-lucide="sprout"></i> Begin Growth
+                    </button>
+                </div>
+
+                <!-- Growth State (Hidden by default) -->
+                <div id="gh-growing" class="hidden flex-col items-center justify-center w-full flex-1 relative">
+                    <!-- Animated Rings -->
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+                        <div class="w-64 h-64 rounded-full border border-zen-sage animate-ping"
+                            style="animation-duration: 4s;"></div>
+                        <div class="absolute w-80 h-80 rounded-full border border-zen-sage animate-ping"
+                            style="animation-duration: 4s; animation-delay: 1s;"></div>
+                    </div>
+
+                    <!-- The Plant -->
+                    <div class="relative w-72 h-72 flex flex-col items-center justify-end z-10 mb-8 mt-12">
+                        <!-- Plant SVG Container -->
+                        <div id="gh-plant-container"
+                            class="relative flex justify-center items-end w-48 h-48 transition-all duration-1000 ease-in-out transform origin-bottom scale-[0.3]">
+                            <i data-lucide="circle" id="gh-svg-seed"
+                                class="absolute w-8 h-8 text-zen-sage bottom-0 transition-opacity duration-1000 opacity-100 fill-zen-sage"></i>
+                            <i data-lucide="sprout" id="gh-svg-sprout"
+                                class="absolute w-20 h-20 text-zen-sage bottom-0 transition-opacity duration-1000 opacity-0"></i>
+                            <i data-lucide="leaf" id="gh-svg-sapling"
+                                class="absolute w-32 h-32 text-zen-sage bottom-0 transition-opacity duration-1000 opacity-0"></i>
+                            <i data-lucide="tree-deciduous" id="gh-svg-mature"
+                                class="absolute w-48 h-48 text-zen-sage bottom-0 transition-opacity duration-1000 opacity-0"></i>
+                        </div>
+                        <!-- Pot -->
+                        <div
+                            class="w-32 h-16 bg-zen-charcoal rounded-b-xl border-t-8 border-zen-dark shadow-xl relative z-20">
+                            <div class="absolute top-0 left-0 w-full h-2 bg-black/20"></div>
+                        </div>
+                    </div>
+
+                    <!-- Timer and Progress -->
+                    <div class="text-5xl font-light font-mono text-zen-charcoal tracking-widest mb-4 mt-8"
+                        id="gh-active-time">25:00</div>
+                    <div class="text-lg text-zen-charcoal/70 uppercase tracking-widest font-medium" id="gh-stage-name">
+                        Seed</div>
+                    <div class="w-64 h-2 bg-black/5 rounded-full mt-4 overflow-hidden">
+                        <div id="gh-progress-bar" class="h-full bg-zen-sage transition-all duration-1000 ease-linear"
+                            style="width: 0%"></div>
+                    </div>
+
+                    <button id="gh-cancel-btn"
+                        class="mt-8 text-sm text-zen-charcoal/50 hover:text-red-500 transition-colors uppercase tracking-widest font-medium">
+                        Abandon Growth
+                    </button>
+
+                    <!-- Music Selector in Greenhouse -->
+                    <div
+                        class="absolute bottom-8 right-8 glass-panel p-4 flex items-center gap-4 z-50 bg-white/70 shadow-lg">
+                        <select id="gh-music-select"
+                            class="bg-transparent text-zen-charcoal font-medium outline-none text-sm cursor-pointer border-none">
+                            <option value="none">Ambient sound off</option>
+                            <option value="rain">Gentle Rain</option>
+                            <option value="birds">Forest Birds</option>
+                            <option value="bowls">Zen Bowls</option>
+                        </select>
+                        <button id="gh-music-toggle"
+                            class="w-10 h-10 rounded-full bg-zen-sage text-white shadow-sm flex items-center justify-center hover:scale-105 transition-transform">
+                            <i data-lucide="play" id="gh-music-icon" class="w-4 h-4 ml-0.5"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- My Garden (Isometric Space) -->
+            <section id="view-my-garden" class="view-section h-full flex flex-col relative overflow-hidden">
+                <div class="flex justify-between items-center mb-6 z-10 relative">
+                    <h2 class="text-3xl font-light">My Garden</h2>
+                </div>
+
+                <!-- Isometric Canvas -->
+                <div class="flex-1 w-full relative flex items-center justify-center -mt-10 perspective-1000">
+                    <div id="isometric-grid" class="w-[800px] h-[800px] relative transition-transform duration-500 ease-in-out" 
+                         style="transform: rotateX(60deg) rotateZ(-45deg); transform-style: preserve-3d; background-color: rgba(206, 222, 189, 0.4); background-image: conic-gradient(rgba(226, 239, 112, 0.3) 90deg, transparent 90deg 180deg, rgba(226, 239, 112, 0.3) 180deg 270deg, transparent 270deg); background-size: 80px 80px;">
+                         <!-- Plants will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Glassmorphic Dock -->
+                <div class="absolute bottom-6 left-1/2 -translate-x-1/2 glass-panel px-6 py-4 rounded-full flex items-center gap-6 shadow-xl z-50 border border-white/50 bg-white/60">
+                    <button id="dock-add-btn" class="flex items-center gap-2 px-5 py-2.5 bg-zen-sage text-white rounded-full hover:bg-zen-charcoal transition-all duration-300 active:scale-95 shadow-md">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Add
+                    </button>
+                    <div class="w-px h-8 bg-zen-charcoal/20"></div>
+                    <button id="dock-move-btn" class="w-12 h-12 rounded-full flex items-center justify-center text-zen-charcoal/80 hover:bg-white transition-all duration-300 hover:shadow-sm" title="Move">
+                        <i data-lucide="move" class="w-5 h-5"></i>
+                    </button>
+                    <button id="dock-water-btn" class="w-12 h-12 rounded-full flex items-center justify-center text-[#FBBF24] hover:bg-white transition-all duration-300 hover:shadow-sm" title="Water All">
+                        <i data-lucide="droplet" class="w-5 h-5"></i>
+                    </button>
+                    <button id="dock-remove-btn" class="w-12 h-12 rounded-full flex items-center justify-center text-red-400 hover:bg-white transition-all duration-300 hover:shadow-sm" title="Remove Mode">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Pomodoro View -->
+            <section id="view-pomodoro" class="view-section h-full flex flex-col items-center">
+                <h2 class="text-3xl font-light mb-8 mt-4">Pomodoro</h2>
+
+                <!-- Setup State -->
+                <div id="pomo-setup" class="flex flex-col items-center w-full max-w-xl mt-8 space-y-10">
+                    <div class="w-full glass-panel p-8 flex flex-col gap-8">
+                        <div>
+                            <div class="flex justify-between items-center mb-4">
+                                <label class="text-sm font-medium text-zen-charcoal/70 uppercase tracking-widest">Focus Time</label>
+                                <span class="text-xl font-mono text-zen-sage" id="pomo-focus-display">20 min</span>
+                            </div>
+                            <input type="range" id="pomo-focus-input" min="1" max="120" step="1" value="20"
+                                class="w-full accent-zen-sage h-2 rounded-lg appearance-none bg-black/5">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center mb-4">
+                                <label class="text-sm font-medium text-zen-charcoal/70 uppercase tracking-widest">Break Time</label>
+                                <span class="text-xl font-mono text-zen-sky" id="pomo-break-display">5 min</span>
+                            </div>
+                            <input type="range" id="pomo-break-input" min="0" max="30" step="1" value="5"
+                                class="w-full accent-zen-sky h-2 rounded-lg appearance-none bg-black/5">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center mb-4">
+                                <label class="text-sm font-medium text-zen-charcoal/70 uppercase tracking-widest">Session Repeats</label>
+                                <span class="text-xl font-mono text-zen-charcoal" id="pomo-repeat-display">1</span>
+                            </div>
+                            <input type="range" id="pomo-repeat-input" min="1" max="10" step="1" value="1"
+                                class="w-full accent-zen-charcoal h-2 rounded-lg appearance-none bg-black/5">
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <p class="text-zen-charcoal/60 mb-2">Total Session Time:</p>
+                        <p class="text-lg font-medium text-zen-charcoal" id="pomo-summary-display">25 min</p>
+                    </div>
+
+                    <button id="pomo-start-btn"
+                        class="px-10 py-4 bg-zen-charcoal text-white rounded-full hover:bg-zen-sage transition-colors shadow-lg font-medium text-lg flex items-center gap-3 hover:scale-105 transform duration-300">
+                        <i data-lucide="timer"></i> Start Session
+                    </button>
+                </div>
+
+                <!-- Active State -->
+                <div id="pomo-active" class="hidden flex-col items-center justify-center w-full flex-1">
+
+                    <div class="flex items-end justify-center gap-12 mb-12 w-full max-w-2xl">
+                        <!-- Plant Visualization -->
+                        <div class="flex flex-col items-center">
+                            <div id="pomo-plant-container"
+                                class="relative flex justify-center items-end w-32 h-32 transition-all duration-1000 ease-in-out transform origin-bottom scale-[0.3]">
+                                <i data-lucide="circle" id="pomo-svg-seed"
+                                    class="absolute w-8 h-8 text-zen-sage bottom-0 transition-opacity duration-1000 opacity-100 fill-zen-sage"></i>
+                                <i data-lucide="sprout" id="pomo-svg-sprout"
+                                    class="absolute w-20 h-20 text-zen-sage bottom-0 transition-opacity duration-1000 opacity-0"></i>
+                                <i data-lucide="tree-deciduous" id="pomo-svg-mature"
+                                    class="absolute w-32 h-32 text-zen-sage bottom-0 transition-opacity duration-1000 opacity-0"></i>
+                            </div>
+                            <div
+                                class="w-20 h-10 bg-zen-charcoal rounded-b-lg border-t-4 border-zen-dark shadow-md relative z-20">
+                            </div>
+                            <p class="mt-4 text-xs font-medium text-zen-charcoal/60 uppercase tracking-widest"
+                                id="pomo-plant-status">Growing...</p>
+                        </div>
+
+                        <!-- Circular Timer Display -->
+                        <div class="relative w-80 h-80 flex items-center justify-center">
+                            <svg class="absolute inset-0 w-full h-full -rotate-90">
+                                <circle cx="160" cy="160" r="140" class="stroke-white/50 fill-none" stroke-width="8">
+                                </circle>
+                                <circle id="pomo-svg-progress" cx="160" cy="160" r="140"
+                                    class="stroke-zen-sage fill-none transition-all duration-1000 ease-linear"
+                                    stroke-width="8" stroke-dasharray="879.64" stroke-dashoffset="0"
+                                    stroke-linecap="round"></circle>
+                            </svg>
+                            <div class="flex flex-col items-center z-10 relative">
+                                <div class="text-7xl font-light tracking-widest text-zen-charcoal font-mono"
+                                    id="pomo-time-display">20:00</div>
+                                <div class="text-lg text-zen-sage font-medium uppercase tracking-widest mt-2"
+                                    id="pomo-phase-display">Focus</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col items-center gap-6 mt-8">
+                        <div class="flex gap-6">
+                            <button id="pomo-pause-btn"
+                                class="p-5 rounded-full bg-zen-sage text-white hover:bg-zen-charcoal transition-colors shadow-lg hover:scale-105">
+                                <i data-lucide="pause" id="pomo-pause-icon" class="w-6 h-6 ml-0.5"></i>
+                            </button>
+                            <button id="pomo-restart-btn"
+                                class="p-5 rounded-full glass-panel hover:bg-white/80 transition-colors shadow-sm">
+                                <i data-lucide="repeat" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                        <button id="pomo-stop-btn"
+                            class="text-sm text-zen-charcoal/50 hover:text-red-500 transition-colors uppercase tracking-widest font-medium mt-2">
+                            Stop Session
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Soundscape View -->
+            <section id="view-soundscape" class="view-section h-full">
+                <h2 class="text-3xl font-light mb-8 mt-4">Soundscape Library</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl mx-auto mt-8">
+
+                    <!-- Rain -->
+                    <div class="sound-card glass-panel p-6 flex flex-col gap-6 hover:shadow-xl transition-shadow bg-white/50 hover:bg-white/70"
+                        data-src="https://upload.wikimedia.org/wikipedia/commons/4/42/Rain_on_a_Tin_Roof.ogg">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div
+                                    class="w-14 h-14 rounded-full bg-zen-skyLight/60 flex items-center justify-center text-zen-charcoal shadow-sm">
+                                    <i data-lucide="cloud-rain" class="w-6 h-6"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-medium text-lg">Gentle Rain</h3>
+                                    <p class="text-sm text-zen-charcoal/60">Nature</p>
+                                </div>
+                            </div>
+                            <button
+                                class="sound-play-btn w-12 h-12 rounded-full flex items-center justify-center bg-zen-sage text-white shadow-md hover:scale-105 transition-transform">
+                                <i data-lucide="play" class="sound-icon w-5 h-5 ml-0.5"></i>
+                            </button>
+                        </div>
+                        <input type="range"
+                            class="sound-volume-slider w-full accent-zen-sage h-2 rounded-lg appearance-none bg-black/5"
+                            min="0" max="100" value="50">
+                    </div>
+
+                    <!-- Birds -->
+                    <div class="sound-card glass-panel p-6 flex flex-col gap-6 hover:shadow-xl transition-shadow bg-white/50 hover:bg-white/70"
+                        data-src="https://upload.wikimedia.org/wikipedia/commons/3/30/Forest_birds.ogg">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div
+                                    class="w-14 h-14 rounded-full bg-zen-sageLight/60 flex items-center justify-center text-zen-charcoal shadow-sm">
+                                    <i data-lucide="bird" class="w-6 h-6"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-medium text-lg">Forest Birds</h3>
+                                    <p class="text-sm text-zen-charcoal/60">Nature</p>
+                                </div>
+                            </div>
+                            <button
+                                class="sound-play-btn w-12 h-12 rounded-full flex items-center justify-center bg-zen-sage text-white shadow-md hover:scale-105 transition-transform">
+                                <i data-lucide="play" class="sound-icon w-5 h-5 ml-0.5"></i>
+                            </button>
+                        </div>
+                        <input type="range"
+                            class="sound-volume-slider w-full accent-zen-sage h-2 rounded-lg appearance-none bg-black/5"
+                            min="0" max="100" value="50">
+                    </div>
+
+                    <!-- Bowls -->
+                    <div class="sound-card glass-panel p-6 flex flex-col gap-6 hover:shadow-xl transition-shadow bg-white/50 hover:bg-white/70"
+                        data-src="https://upload.wikimedia.org/wikipedia/commons/d/df/Tibetan_Singing_Bowl.ogg">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div
+                                    class="w-14 h-14 rounded-full bg-[#E5D4FF]/60 flex items-center justify-center text-zen-charcoal shadow-sm">
+                                    <i data-lucide="waves" class="w-6 h-6"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-medium text-lg">Zen Bowls</h3>
+                                    <p class="text-sm text-zen-charcoal/60">Meditation</p>
+                                </div>
+                            </div>
+                            <button
+                                class="sound-play-btn w-12 h-12 rounded-full flex items-center justify-center bg-zen-sage text-white shadow-md hover:scale-105 transition-transform">
+                                <i data-lucide="play" class="sound-icon w-5 h-5 ml-0.5"></i>
+                            </button>
+                        </div>
+                        <input type="range"
+                            class="sound-volume-slider w-full accent-zen-sage h-2 rounded-lg appearance-none bg-black/5"
+                            min="0" max="100" value="50">
+                    </div>
+
+                    <!-- White Noise -->
+                    <div class="sound-card glass-panel p-6 flex flex-col gap-6 hover:shadow-xl transition-shadow bg-white/50 hover:bg-white/70"
+                        data-src="https://upload.wikimedia.org/wikipedia/commons/d/d4/White_noise.ogg">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div
+                                    class="w-14 h-14 rounded-full bg-white/60 flex items-center justify-center text-zen-charcoal shadow-sm">
+                                    <i data-lucide="wind" class="w-6 h-6"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-medium text-lg">White Noise</h3>
+                                    <p class="text-sm text-zen-charcoal/60">Focus</p>
+                                </div>
+                            </div>
+                            <button
+                                class="sound-play-btn w-12 h-12 rounded-full flex items-center justify-center bg-zen-sage text-white shadow-md hover:scale-105 transition-transform">
+                                <i data-lucide="play" class="sound-icon w-5 h-5 ml-0.5"></i>
+                            </button>
+                        </div>
+                        <input type="range"
+                            class="sound-volume-slider w-full accent-zen-sage h-2 rounded-lg appearance-none bg-black/5"
+                            min="0" max="100" value="50">
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- Journal View -->
+            <section id="view-journal" class="view-section h-full flex flex-col">
+                <div class="flex justify-between items-end mb-8">
+                    <h2 class="text-3xl font-light">Reflection Journal</h2>
+                    <span class="text-sm text-zen-charcoal/60 font-medium tracking-wide uppercase"
+                        id="current-date"></span>
+                </div>
+
+                <div class="flex flex-col lg:flex-row gap-8 flex-1 min-h-0 mb-4">
+                    <!-- New Entry -->
+                    <div class="flex-1 flex flex-col glass-panel bg-white/40">
+                        <div class="flex items-center gap-6 p-6 border-b border-white/40">
+                            <span class="text-sm font-medium text-zen-charcoal/70 uppercase tracking-wide">Mood</span>
+                            <div class="flex gap-3 text-2xl" id="journal-moods">
+                                <button
+                                    class="mood-btn opacity-100 hover:scale-125 transition-transform hover:opacity-100 focus:opacity-100 outline-none"
+                                    data-mood="🙂">🙂</button>
+                                <button
+                                    class="mood-btn opacity-40 hover:scale-125 transition-transform hover:opacity-100 focus:opacity-100 outline-none"
+                                    data-mood="😉">😉</button>
+                                <button
+                                    class="mood-btn opacity-40 hover:scale-125 transition-transform hover:opacity-100 focus:opacity-100 outline-none"
+                                    data-mood="😂">😂</button>
+                                <button
+                                    class="mood-btn opacity-40 hover:scale-125 transition-transform hover:opacity-100 focus:opacity-100 outline-none"
+                                    data-mood="😐">😐</button>
+                                <button
+                                    class="mood-btn opacity-40 hover:scale-125 transition-transform hover:opacity-100 focus:opacity-100 outline-none"
+                                    data-mood="☹️">☹️</button>
+                                <button
+                                    class="mood-btn opacity-40 hover:scale-125 transition-transform hover:opacity-100 focus:opacity-100 outline-none"
+                                    data-mood="😭">😭</button>
+                            </div>
+                        </div>
+                        <textarea id="journal-textarea"
+                            class="w-full flex-1 bg-transparent resize-none p-8 outline-none text-lg text-zen-charcoal placeholder:text-zen-charcoal/30 font-serif leading-relaxed"
+                            placeholder="Write your thoughts here... Let them flow like water."></textarea>
+                        <div class="flex justify-end p-6 pt-0">
+                            <button id="journal-save-btn"
+                                class="px-8 py-3 bg-zen-sage text-white rounded-xl hover:bg-zen-charcoal transition-colors shadow-md flex items-center gap-2 font-medium">
+                                <i data-lucide="save" class="w-5 h-5"></i> Save Entry
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Past Entries Sidebar -->
+                    <div class="w-full lg:w-1/3 flex flex-col h-full overflow-hidden">
+                        <h3 class="text-sm font-medium text-zen-charcoal/70 mb-4 uppercase tracking-widest">Jiko Reflections</h3>
+                        <div id="journal-entries-list" class="flex-1 overflow-y-auto space-y-4 pr-2">
+                            <!-- Entries injected here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quotes View -->
+            <section id="view-quotes" class="view-section h-full flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-3xl font-light">Wall of Wisdom</h2>
+                    <button id="quote-add-btn"
+                        class="px-5 py-2.5 bg-zen-sage text-white rounded-xl hover:bg-zen-charcoal transition-colors shadow-md flex items-center gap-2 text-sm font-medium">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Add Quote
+                    </button>
+                </div>
+
+                <!-- Add Quote Form (Hidden by default) -->
+                <div id="quote-form-container"
+                    class="hidden glass-panel p-6 mb-8 bg-white/60 shadow-lg border-white/80">
+                    <h3 class="text-lg font-medium text-zen-charcoal mb-4">Create a Quote Card</h3>
+                    <div class="flex flex-col gap-4">
+                        <textarea id="quote-input-text"
+                            class="w-full bg-white/60 resize-none p-4 rounded-xl outline-none text-lg text-zen-charcoal placeholder:text-zen-charcoal/40 font-serif border border-white/40 focus:border-zen-sage/50 transition-colors"
+                            rows="3" placeholder="Enter inspiring words..."></textarea>
+                        <input id="quote-input-author" type="text"
+                            class="w-full bg-white/60 p-4 rounded-xl outline-none text-zen-charcoal placeholder:text-zen-charcoal/40 border border-white/40 focus:border-zen-sage/50 transition-colors"
+                            placeholder="Author...">
+
+                        <div
+                            class="flex flex-wrap items-center gap-6 mt-2 bg-white/30 p-4 rounded-xl border border-white/40">
+                            <div class="flex items-center gap-3">
+                                <label
+                                    class="text-sm font-medium text-zen-charcoal/80 uppercase tracking-wide">Background:</label>
+                                <input type="color" id="quote-input-bg" value="#ffffff"
+                                    class="w-10 h-10 rounded cursor-pointer border-none p-0 bg-transparent shadow-sm">
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <label class="text-sm font-medium text-zen-charcoal/80 uppercase tracking-wide">Text
+                                    Color:</label>
+                                <input type="color" id="quote-input-color" value="#435334"
+                                    class="w-10 h-10 rounded cursor-pointer border-none p-0 bg-transparent shadow-sm">
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <label class="text-sm font-medium text-zen-charcoal/80 uppercase tracking-wide">Font
+                                    Style:</label>
+                                <select id="quote-input-font"
+                                    class="bg-white/80 p-2.5 rounded-lg outline-none text-sm cursor-pointer border border-white/50 text-zen-charcoal font-medium">
+                                    <option value="font-serif italic text-xl">Serif Italic</option>
+                                    <option value="font-sans font-medium text-2xl">Sans Medium</option>
+                                    <option value="font-mono font-light text-lg">Mono Light</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-4 mt-4">
+                            <button id="quote-cancel-btn"
+                                class="px-6 py-2 text-zen-charcoal/60 hover:text-zen-charcoal transition-colors font-medium">Cancel</button>
+                            <button id="quote-save-btn"
+                                class="px-8 py-2.5 bg-zen-sage text-white rounded-xl hover:bg-zen-charcoal transition-colors shadow-md font-medium flex items-center gap-2">
+                                <i data-lucide="check" class="w-4 h-4"></i> Save Card
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="quotes-grid"
+                    class="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6 flex-1 overflow-y-auto pb-8 pr-2 custom-scrollbar">
+                    <!-- Cards injected here -->
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
