@@ -213,10 +213,54 @@ ghStartBtn.addEventListener('click', () => {
     ghGrowing.classList.remove('hidden');
     ghGrowing.classList.add('flex');
     
+    // Switch from dropdown to read-only label
+    const musicDropdown = document.getElementById('gh-music-select-dropdown');
+    if (musicDropdown) musicDropdown.classList.add('hidden');
+    const labelForActive = document.getElementById('gh-active-music-label');
+    if (labelForActive) labelForActive.classList.remove('hidden');
+    
     currentGrowthSeconds = totalGrowthSeconds;
     ghActiveTime.textContent = formatTime(currentGrowthSeconds);
     ghProgressBar.style.width = '0%';
     updatePlantStage(0);
+
+    // Update Intention Display
+    const intentionDisplay = document.getElementById('gh-active-intention-display');
+    const msg = ghMessageInput ? ghMessageInput.value.trim() : '';
+    if (intentionDisplay) {
+        if (msg) {
+            intentionDisplay.textContent = msg;
+            intentionDisplay.classList.remove('hidden');
+        } else {
+            intentionDisplay.classList.add('hidden');
+        }
+    }
+
+    // Auto-start ambient music
+    const firstSelect = document.querySelector('.gh-music-select');
+    const firstToggle = document.querySelector('.gh-music-toggle');
+    const activeLabel = document.getElementById('gh-active-music-label');
+    
+    if (firstSelect) {
+        if (activeLabel) {
+            if (firstSelect.value === 'none') {
+                activeLabel.textContent = 'Ambient sound off';
+            } else {
+                activeLabel.textContent = firstSelect.options[firstSelect.selectedIndex].text;
+            }
+        }
+        
+        if (firstSelect.value !== 'none') {
+            setTimeout(() => {
+                // Do not play if the user cancelled the timer within the 3 seconds
+                if (!ghSetup.classList.contains('hidden')) return;
+                
+                if (typeof ghMusicPlaying !== 'undefined' && !ghMusicPlaying && firstToggle) {
+                    firstToggle.click();
+                }
+            }, 3000);
+        }
+    }
 
     ghTimer = setInterval(() => {
         currentGrowthSeconds--;
@@ -235,6 +279,24 @@ ghStartBtn.addEventListener('click', () => {
             ghCancelBtn.classList.remove('text-zen-charcoal/50', 'hover:text-red-500');
             ghCancelBtn.classList.add('text-zen-sage', 'hover:text-zen-dark', 'font-bold');
             saveToGarden(selectedSeed, ghMessageInput ? ghMessageInput.value.trim() : '');
+            
+            // Auto-pause ambient music
+            const firstToggle = document.querySelector('.gh-music-toggle');
+            if (typeof ghMusicPlaying !== 'undefined' && ghMusicPlaying && firstToggle) {
+                firstToggle.click();
+            }
+
+            // Play success beep twice
+            const successBeep = new Audio('beep.mp3');
+            let beepCount = 0;
+            successBeep.addEventListener('ended', () => {
+                beepCount++;
+                if (beepCount < 2) {
+                    successBeep.currentTime = 0;
+                    successBeep.play().catch(e => console.log(e));
+                }
+            });
+            successBeep.play().catch(e => console.log(e));
         }
     }, 1000);
 });
@@ -246,6 +308,18 @@ ghCancelBtn.addEventListener('click', () => {
     ghGrowing.classList.add('hidden');
     ghGrowing.classList.remove('flex');
     
+    // Switch back to dropdown
+    const musicDropdown = document.getElementById('gh-music-select-dropdown');
+    const activeLabel = document.getElementById('gh-active-music-label');
+    if (musicDropdown) musicDropdown.classList.remove('hidden');
+    if (activeLabel) activeLabel.classList.add('hidden');
+    
+    // Auto-pause ambient music if abandoning or finishing
+    const firstToggle = document.querySelector('.gh-music-toggle');
+    if (typeof ghMusicPlaying !== 'undefined' && ghMusicPlaying && firstToggle) {
+        firstToggle.click();
+    }
+    
     // Reset button text and style back to original
     ghCancelBtn.textContent = "Abandon Growth";
     ghCancelBtn.classList.remove('text-zen-sage', 'hover:text-zen-dark', 'font-bold');
@@ -254,7 +328,76 @@ ghCancelBtn.addEventListener('click', () => {
 
 // --- Isometric Garden Space Logic ---
 const gardenGrid = document.getElementById('isometric-grid');
+const gardenViewport = document.getElementById('garden-viewport');
 const dockAddBtn = document.getElementById('dock-add-btn');
+
+let currentRotX = 60;
+let currentRotZ = -45;
+let isDraggingGarden = false;
+let startDragX = 0;
+let startDragY = 0;
+
+if (gardenViewport && gardenGrid) {
+    gardenViewport.addEventListener('mousedown', (e) => {
+        // Ignore clicks on plants or UI elements
+        if (e.target.closest('.sound-card') || e.target.closest('button') || e.target.closest('i')) return;
+        
+        isDraggingGarden = true;
+        startDragX = e.clientX;
+        startDragY = e.clientY;
+        
+        // Remove transitions so rotation is instantly responsive to mouse movement
+        gardenGrid.classList.remove('transition-transform', 'duration-500', 'ease-in-out');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDraggingGarden) return;
+        
+        const deltaX = e.clientX - startDragX;
+        const deltaY = e.clientY - startDragY;
+        
+        // Adjust rotations based on mouse movement (scaled for sensitivity)
+        currentRotZ += deltaX * 0.3;
+        currentRotX -= deltaY * 0.3;
+        
+        // Clamp X rotation so the garden doesn't flip entirely upside down
+        currentRotX = Math.max(0, Math.min(85, currentRotX));
+        
+        gardenGrid.style.transform = `rotateX(${currentRotX}deg) rotateZ(${currentRotZ}deg)`;
+        
+        startDragX = e.clientX;
+        startDragY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', () => {
+        isDraggingGarden = false;
+    });
+    
+    // Also handle touch events for mobile
+    gardenViewport.addEventListener('touchstart', (e) => {
+        if (e.target.closest('.sound-card') || e.target.closest('button') || e.target.closest('i')) return;
+        isDraggingGarden = true;
+        startDragX = e.touches[0].clientX;
+        startDragY = e.touches[0].clientY;
+        gardenGrid.classList.remove('transition-transform', 'duration-500', 'ease-in-out');
+    }, {passive: true});
+    
+    window.addEventListener('touchmove', (e) => {
+        if (!isDraggingGarden) return;
+        const deltaX = e.touches[0].clientX - startDragX;
+        const deltaY = e.touches[0].clientY - startDragY;
+        currentRotZ += deltaX * 0.4;
+        currentRotX -= deltaY * 0.4;
+        currentRotX = Math.max(0, Math.min(85, currentRotX));
+        gardenGrid.style.transform = `rotateX(${currentRotX}deg) rotateZ(${currentRotZ}deg)`;
+        startDragX = e.touches[0].clientX;
+        startDragY = e.touches[0].clientY;
+    }, {passive: true});
+    
+    window.addEventListener('touchend', () => {
+        isDraggingGarden = false;
+    });
+}
 const dockMoveBtn = document.getElementById('dock-move-btn');
 const dockWaterBtn = document.getElementById('dock-water-btn');
 const dockRemoveBtn = document.getElementById('dock-remove-btn');
@@ -601,90 +744,163 @@ pomoStopBtn.addEventListener('click', () => {
 
 const soundCards = document.querySelectorAll('.sound-card');
 const globalAudioElements = {};
+const allAudioControllers = [];
+
+function stopAllAudio(except = null) {
+    allAudioControllers.forEach(c => {
+        if (c !== except && c.isPlaying()) {
+            c.pause();
+        }
+    });
+}
 
 soundCards.forEach(card => {
     const src = card.getAttribute('data-src');
     const playBtn = card.querySelector('.sound-play-btn');
     const icon = card.querySelector('.sound-icon');
-    const slider = card.querySelector('.sound-volume-slider');
+    const slider = card.querySelector('.sound-progress-slider');
 
     // Create audio element
     const audio = new Audio(src);
-    audio.loop = true;
-    audio.volume = slider.value / 100;
+    audio.loop = false;
+    audio.volume = 0.5;
     globalAudioElements[src] = audio;
 
     let isPlaying = false;
 
+    const controller = {
+        isPlaying: () => isPlaying,
+        pause: () => {
+            if (isPlaying) {
+                audio.pause();
+                isPlaying = false;
+                playBtn.innerHTML = '<i data-lucide="play" class="sound-icon w-5 h-5 ml-0.5"></i>';
+                playBtn.classList.replace('bg-zen-charcoal', 'bg-zen-sage');
+                lucide.createIcons();
+            }
+        }
+    };
+    allAudioControllers.push(controller);
+
+    audio.addEventListener('ended', () => {
+        isPlaying = false;
+        audio.currentTime = 0;
+        if (slider) slider.value = 0;
+        playBtn.innerHTML = '<i data-lucide="play" class="sound-icon w-5 h-5 ml-0.5"></i>';
+        playBtn.classList.replace('bg-zen-charcoal', 'bg-zen-sage');
+        lucide.createIcons();
+    });
+
+    // Standard toggle behavior
     playBtn.addEventListener('click', () => {
-        isPlaying = !isPlaying;
-        if (isPlaying) {
+        if (!isPlaying) {
+            stopAllAudio(controller);
             audio.play().catch(e => console.log("Audio play blocked until interaction:", e));
-            icon.setAttribute('data-lucide', 'pause');
+            isPlaying = true;
+            playBtn.innerHTML = '<i data-lucide="pause" class="sound-icon w-5 h-5"></i>';
             playBtn.classList.replace('bg-zen-sage', 'bg-zen-charcoal');
         } else {
-            audio.pause();
-            icon.setAttribute('data-lucide', 'play');
-            playBtn.classList.replace('bg-zen-charcoal', 'bg-zen-sage');
+            controller.pause();
         }
         lucide.createIcons();
     });
 
-    slider.addEventListener('input', (e) => {
-        audio.volume = e.target.value / 100;
-    });
+    if (slider) {
+        audio.addEventListener('timeupdate', () => {
+            if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+                slider.value = (audio.currentTime / audio.duration) * 100;
+            }
+        });
+
+        slider.addEventListener('input', (e) => {
+            if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+                audio.currentTime = (e.target.value / 100) * audio.duration;
+            }
+        });
+    }
 });
 
-// Also wire up the Greenhouse music selector
-const ghMusicSelect = document.getElementById('gh-music-select');
-const ghMusicToggle = document.getElementById('gh-music-toggle');
-const ghMusicIcon = document.getElementById('gh-music-icon');
+// Also wire up the Greenhouse music selectors
+const ghMusicSelects = document.querySelectorAll('.gh-music-select');
+const ghMusicToggles = document.querySelectorAll('.gh-music-toggle');
 let currentGhAudio = null;
+let currentGhAudioSrc = null;
 let ghMusicPlaying = false;
 
-const musicMap = {
-    'rain': 'https://upload.wikimedia.org/wikipedia/commons/4/42/Rain_on_a_Tin_Roof.ogg',
-    'birds': 'https://upload.wikimedia.org/wikipedia/commons/3/30/Forest_birds.ogg',
-    'bowls': 'https://upload.wikimedia.org/wikipedia/commons/d/df/Tibetan_Singing_Bowl.ogg'
-};
-
-if (ghMusicToggle && ghMusicSelect) {
-    ghMusicToggle.addEventListener('click', () => {
-        const choice = ghMusicSelect.value;
-        if (choice === 'none') return;
-        
-        const src = musicMap[choice];
-        
-        if (currentGhAudio && currentGhAudio.src !== src) {
+const ghAudioController = {
+    isPlaying: () => ghMusicPlaying,
+    pause: () => {
+        if (ghMusicPlaying && currentGhAudio) {
             currentGhAudio.pause();
             ghMusicPlaying = false;
-        }
-
-        if (!currentGhAudio || currentGhAudio.src !== src) {
-            currentGhAudio = new Audio(src);
-            currentGhAudio.loop = true;
-            currentGhAudio.volume = 0.5;
-        }
-
-        ghMusicPlaying = !ghMusicPlaying;
-        
-        if (ghMusicPlaying) {
-            currentGhAudio.play().catch(e => console.log(e));
-            ghMusicIcon.setAttribute('data-lucide', 'pause');
-        } else {
-            currentGhAudio.pause();
-            ghMusicIcon.setAttribute('data-lucide', 'play');
-        }
-        lucide.createIcons();
-    });
-
-    ghMusicSelect.addEventListener('change', () => {
-        if (currentGhAudio) {
-            currentGhAudio.pause();
-            ghMusicPlaying = false;
-            ghMusicIcon.setAttribute('data-lucide', 'play');
+            ghMusicToggles.forEach(btn => {
+                btn.innerHTML = '<i data-lucide="play" class="gh-music-icon w-4 h-4 ml-0.5"></i>';
+            });
             lucide.createIcons();
         }
+    }
+};
+allAudioControllers.push(ghAudioController);
+
+const musicMap = {
+    'sunlight': 'Seven_AM_Sunlight.mp3',
+    'room_clouds': 'A_Room_Under_Clouds.mp3',
+    'before_clouds': 'Before_the_Clouds_Break.mp3',
+    'porch_rain': 'Porch_Swing_Rain.mp3',
+    'rain_rests': 'Where_The_Rain_Rests.mp3',
+    'tides_canopy': 'Tides_Beneath_the_Canopy.mp3'
+};
+
+if (ghMusicToggles.length > 0 && ghMusicSelects.length > 0) {
+    ghMusicToggles.forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            const choice = ghMusicSelects[0].value;
+            if (choice === 'none') return;
+            
+            const src = musicMap[choice];
+            
+            if (currentGhAudio && currentGhAudioSrc !== src) {
+                currentGhAudio.pause();
+                ghMusicPlaying = false;
+            }
+
+            if (!currentGhAudio || currentGhAudioSrc !== src) {
+                currentGhAudio = new Audio(src);
+                currentGhAudioSrc = src;
+                currentGhAudio.loop = true;
+                currentGhAudio.volume = 0.5;
+            }
+
+            if (!ghMusicPlaying) {
+                stopAllAudio(ghAudioController);
+                currentGhAudio.play().catch(e => console.log(e));
+                ghMusicPlaying = true;
+                ghMusicToggles.forEach(btn => {
+                    btn.innerHTML = '<i data-lucide="pause" class="gh-music-icon w-4 h-4"></i>';
+                });
+            } else {
+                ghAudioController.pause();
+            }
+            lucide.createIcons();
+        });
+    });
+
+    ghMusicSelects.forEach(select => {
+        select.addEventListener('change', (e) => {
+            const newValue = e.target.value;
+            ghMusicSelects.forEach(s => {
+                if (s !== e.target) s.value = newValue;
+            });
+
+            if (currentGhAudio) {
+                currentGhAudio.pause();
+                ghMusicPlaying = false;
+                ghMusicToggles.forEach(btn => {
+                    btn.innerHTML = '<i data-lucide="play" class="gh-music-icon w-4 h-4 ml-0.5"></i>';
+                });
+                lucide.createIcons();
+            }
+        });
     });
 }
 
