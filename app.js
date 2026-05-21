@@ -686,6 +686,18 @@ pomoStartBtn.addEventListener('click', () => {
                 setPomoPhase(nextPhase);
                 if (nextPhase >= pomoTotalPhases) {
                     clearInterval(pomoTimer);
+                    
+                    // Play success beep twice
+                    const successBeep = new Audio('beep.mp3');
+                    let beepCount = 0;
+                    successBeep.addEventListener('ended', () => {
+                        beepCount++;
+                        if (beepCount < 2) {
+                            successBeep.currentTime = 0;
+                            successBeep.play().catch(e => console.log(e));
+                        }
+                    });
+                    successBeep.play().catch(e => console.log(e));
                 }
             }
         }
