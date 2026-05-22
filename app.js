@@ -879,16 +879,7 @@ if (ghMusicToggles.length > 0 && ghMusicSelects.length > 0) {
             if (!currentGhAudio || currentGhAudioSrc !== src) {
                 currentGhAudio = new Audio(src);
                 currentGhAudioSrc = src;
-                
-                // Gapless loop hack to remove delay
-                currentGhAudio.addEventListener('timeupdate', function() {
-                    const buffer = 0.2;
-                    if (this.duration && this.currentTime >= this.duration - buffer) {
-                        this.currentTime = 0;
-                        this.play();
-                    }
-                });
-                
+                currentGhAudio.loop = true;
                 currentGhAudio.volume = 0.5;
             }
 
