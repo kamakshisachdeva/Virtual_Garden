@@ -287,7 +287,7 @@ ghStartBtn.addEventListener('click', () => {
             }
 
             // Play success beep twice
-            const successBeep = new Audio('Audio file/beep.mp3');
+            const successBeep = new Audio('audio/beep.mp3');
             let beepCount = 0;
             successBeep.addEventListener('ended', () => {
                 beepCount++;
@@ -688,7 +688,7 @@ pomoStartBtn.addEventListener('click', () => {
                     clearInterval(pomoTimer);
                     
                     // Play success beep twice
-                    const successBeep = new Audio('Audio file/beep.mp3');
+                    const successBeep = new Audio('audio/beep.mp3');
                     let beepCount = 0;
                     successBeep.addEventListener('ended', () => {
                         beepCount++;
@@ -855,12 +855,12 @@ const ghAudioController = {
 allAudioControllers.push(ghAudioController);
 
 const musicMap = {
-    'sunlight': 'Audio file/Seven_AM_Sunlight.mp3',
-    'room_clouds': 'Audio file/A_Room_Under_Clouds.mp3',
-    'before_clouds': 'Audio file/Before_the_Clouds_Break.mp3',
-    'porch_rain': 'Audio file/Porch_Swing_Rain.mp3',
-    'rain_rests': 'Audio file/Where_The_Rain_Rests.mp3',
-    'tides_canopy': 'Audio file/Tides_Beneath_the_Canopy.mp3'
+    'sunlight': 'audio/Seven_AM_Sunlight.mp3',
+    'room_clouds': 'audio/A_Room_Under_Clouds.mp3',
+    'before_clouds': 'audio/Before_the_Clouds_Break.mp3',
+    'porch_rain': 'audio/Porch_Swing_Rain.mp3',
+    'rain_rests': 'audio/Where_The_Rain_Rests.mp3',
+    'tides_canopy': 'audio/Tides_Beneath_the_Canopy.mp3'
 };
 
 if (ghMusicToggles.length > 0 && ghMusicSelects.length > 0) {
